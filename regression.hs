@@ -37,11 +37,12 @@ main = do
         errs  = residuals x y betas
         stdErrs      = getStdErrs varCovMatrix x errs
         whiteStdErrs = getStdErrs robustVCV x errs
+        tstats = liftA2 (/) betas whiteStdErrs
 
     putStrLn "\n\tLMVTX Excess Returns & Fama French Factors"
     readRawCsv fileP >>= pprint . (sliceData 5 2)
     putStrLn "\n\tGLS Regression output"
-    let output = regOut <$> betas <*> whiteStdErrs
+    let output = regOut <$> betas <*> whiteStdErrs <*> tstats
     pprint output
     putStrLn "\n\tEstimated Alphas on LMVTX"
     pprint $ output ! "Alpha"
@@ -119,12 +120,13 @@ getStdErrs varCovFn x e = (asColumn . sqrt . takeDiag) <$> (varCovFn <$> x <*> e
 
 
 type HashMap = Data.Map.Map
-regOut :: (Element d, IsString a) =>  Matrix d -> Matrix d -> HashMap ErrorMsg (a,d,a,d)
-regOut betas stdErr = do
+regOut :: (Element d, IsString a) => Matrix d -> Matrix d -> Matrix d -> HashMap ErrorMsg ((a,d), (a,d), (a,d))
+regOut betas stdErr tstats = do
     Data.Map.fromList $ zip (words "Alpha Market SMB HML") $ regOutput
     where matrixToList = (toList . head . toColumns)
-          regOutput = zip4 (replicate 4 "Coefficient") (matrixToList betas)
-                           (replicate 4 "Std. Errors") (matrixToList stdErr)
+          regOutput = zip3 (zip (replicate 4 "Coefficient") (matrixToList betas))
+                           (zip (replicate 4 "Std. Errors") (matrixToList stdErr))
+                           (zip (replicate 4 "t-Statistic") (matrixToList tstats))
 
 
 -- OUTPUT: Ideally find a way to format and print in table
@@ -166,11 +168,11 @@ let stdErrs      = fmap (asColumn . sqrt . takeDiag) $ liftA2 (varCovMatrix) x e
 let stdErrs      = (asColumn . sqrt . takeDiag) <$> (varCovMatrix <$> x <*> e)
 let whiteStdErrs = (asColumn . sqrt . takeDiag) <$> (robustVCV <$> x <*> e)
 let tstats = liftA2 (/) betas whiteStdErrs
-let df = regOut <$> betas <*> whiteStdErrs
+let df = regOut <$> betas <*> whiteStdErrs <*> tstats
 df ! "Alpha"
 df ! "HML"
 
-let matrixToList = fmap (toList . head . toColumns)
+let matrixToList = fmap (ZipList . toList . head . toColumns)
 map matrixToList [betas, whiteStdErrs, tstats]
 
 
