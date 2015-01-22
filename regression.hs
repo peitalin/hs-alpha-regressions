@@ -7,6 +7,7 @@
 import           Colour.ColourGHCI
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Vector 				as V
+import qualified Data.Map
 import           Data.Csv
 import           Data.List
 import  		 Data.String 				-- IsString type
@@ -29,21 +30,21 @@ main = do
         x2 = getKey csvdata smb
         x3 = getKey csvdata hml
         x0 = intercept csvdata
-        x = x0 |+| x1 |+| x2 |+| x3 -- append Either matrix columns (design matrix)
+        x = x0 |+| x1 |+| x2 |+| x3 -- append (Either matrix) columns
 
         -- OLS
         betas = liftA2 estimateBetas x y
-        e     = residuals x y betas
-        stdErrs      = fmap (sqrt . takeDiag) $ liftA2 (varCovMatrix) x e
-        whiteStdErrs = robustVCV <$> x <*> e >>= return . sqrt . takeDiag
-        -- whiteStdErrs'  = (sqrt . takeDiag) <$> (robustVCV <$> x <*> e)
+        errs  = residuals x y betas
+        stdErrs      = getStdErrs varCovMatrix x errs
+        whiteStdErrs = getStdErrs robustVCV x errs
 
-    pprint "Returns & Fama French Factors"
+    putStrLn "\n\tLMVTX Excess Returns & Fama French Factors"
     readRawCsv fileP >>= pprint . (sliceData 5 2)
-    pprint "GLS Regression Output"
-    pprint $ regOut <$> betas <*> whiteStdErrs
-    pprint "Original standard errors:"
-    pprint stdErrs
+    putStrLn "\n\tGLS Regression output"
+    let output = regOut <$> betas <*> whiteStdErrs
+    pprint output
+    putStrLn "\n\tEstimated Alphas on LMVTX"
+    pprint $ output ! "Alpha"
 
 
 
@@ -65,7 +66,6 @@ instance ToNamedRecord Returns
 
 type Scalar a = Numeric.LinearAlgebra.Field a
 type ErrorMsg = String
--- type CsvData = V.Vector (V.Vector BL.ByteString)
 
 readRawCsv :: FilePath -> IO (Either ErrorMsg [Returns])
 readRawCsv fileName = fmap parseCSV $ BL.readFile fileName
@@ -111,13 +111,23 @@ robustVCV x e = (inv(x'<>x))  <>  x'<>omega<>x  <>  (inv(x'<>x))  -- Sandwich Es
           e'    = trans e
 
 
--- regOut :: (Storable d, Storable b, IsString c, IsString a) => Matrix b -> Vector d -> [(String, (a, b, c, d))]
-regOut betas stdErrs = do
-    zip p $ zip4 c (toList b') s (toList stdErrs)
-    where c = (replicate 4 "Coefficient")
-          s = (replicate 4 "Std. Error")
-          p = words "Alpha Market SMB HML"
-          b' = ((toColumns betas)!!0) -- ((!!) b 0)
+getStdErrs :: (Element t, Applicative f, Floating (Vector t)) => (a -> b -> Matrix t) -> f a -> f b -> f (Matrix t)
+getStdErrs varCovFn x e = (asColumn . sqrt . takeDiag) <$> (varCovFn <$> x <*> e)
+-- getStdErrs varCovFn x e = fmap (sqrt . takeDiag) $ liftA2 (varCovFn) x e
+-- getStdErrs varCovFn x e = varCovFn <$> x <*> e >>= return . sqrt . takeDiag
+
+
+
+type HashMap = Data.Map.Map
+regOut :: (Element d, IsString a) =>  Matrix d -> Matrix d -> HashMap ErrorMsg (a,d,a,d)
+regOut betas stdErr = do
+    Data.Map.fromList $ zip (words "Alpha Market SMB HML") $ regOutput
+    where matrixToList = (toList . head . toColumns)
+          regOutput = zip4 (replicate 4 "Coefficient") (matrixToList betas)
+                           (replicate 4 "Std. Errors") (matrixToList stdErr)
+
+
+-- OUTPUT: Ideally find a way to format and print in table
 
 
 
@@ -128,6 +138,8 @@ a |&| b = fromBlocks [[a, b]] :: Matrix Double
 infixl 3 |+|
 c |+| d = liftA2 (|&|) c d
 
+infixl 3 !
+hashmap ! key = (Data.Map.lookup key) <$> hashmap
 
 
 
@@ -146,39 +158,21 @@ let x1 = getKey qwer market
 let x2 = getKey qwer smb
 let x3 = getKey qwer hml
 let x0 = intercept qwer
--- let x = liftA3 (\x y z -> fromColumns [x, y, z]) x1 x2 x3
 let x = x0 |+| x1 |+| x2 |+| x3
 let betas = liftA2 estimateBetas x y
 let e = residuals x y betas
 
-let stdErrs      = fmap (sqrt . takeDiag) $ liftA2 (varCovMatrix) x e
-let stdErrs      = (sqrt . takeDiag) <$> (varCovMatrix <$> x <*> e)
-let whiteStdErrs = robustVCV <$> x <*> e >>= return . sqrt . takeDiag
-regOut <$> betas <*> whiteStdErrs
+let stdErrs      = fmap (asColumn . sqrt . takeDiag) $ liftA2 (varCovMatrix) x e
+let stdErrs      = (asColumn . sqrt . takeDiag) <$> (varCovMatrix <$> x <*> e)
+let whiteStdErrs = (asColumn . sqrt . takeDiag) <$> (robustVCV <$> x <*> e)
+let tstats = liftA2 (/) betas whiteStdErrs
+let df = regOut <$> betas <*> whiteStdErrs
+df ! "Alpha"
+df ! "HML"
 
--- Using lens
-import Control.Lens
-let yy1 = fmap (fmap lmvtx) qwer
-let xx1 = fmap (fmap market) qwer
-let xx2 = fmap (fmap smb) qwer
-let xx3 = fmap (fmap hml) qwer
-let csvdata = liftA3 (\a b c -> zip3 a b c) xx1 xx2 xx3
-
-let y  = (asColumn . fromList) <$> yy1
-let x1 = fmap (asColumn . fromList . fmap (^._1)) csvdata
-let x2 = fmap (asColumn . fromList . fmap (^._2)) csvdata
-let x3 = fmap (asColumn . fromList . fmap (^._3)) csvdata
-let x0 = Right $ asColumn (constant 1 51 :: Vector Double)
-
-let x  = x0 |+| x1 |+| x2 |+| x3
-let x  = foldl (|+|) x0 [x1, x2, x3]
-let betas = liftA2 (\x y -> pinv x <> y) x y
+let matrixToList = fmap (toList . head . toColumns)
+map matrixToList [betas, whiteStdErrs, tstats]
 
 
-let yhat = liftA2 (<>) x betas
-let e = residuals x y betas -- y - yhat
-let stdErrs       = (sqrt . takeDiag) <$> (varCovMatrix <$> x <*> e)
-let whiteStdErrs  = robustVCV <$> x <*> e >>= return . sqrt . takeDiag
-regOut <$> betas <*> whiteStdErrs
 
 -}
