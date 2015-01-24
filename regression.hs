@@ -10,10 +10,10 @@ import qualified Data.Vector 				as V
 import qualified Data.Map
 import           Data.Csv
 import           Data.List
-import  		 Data.String 				-- IsString type
-import 			 Foreign.Storable			-- Storable type
-import 			 GHC.Generics
-import 			 Control.Applicative
+import           Data.String 				-- IsString type
+import           Foreign.Storable			-- Storable type
+import           GHC.Generics
+import           Control.Applicative
 import           Numeric.LinearAlgebra
 -- import           Control.Lens hiding ((<.>))
 -- WARNING: Methods from Data.Vector and Numeric.LinearAlgebra.Vector are different!
@@ -40,7 +40,7 @@ main = do
         tstats = liftA2 (/) betas whiteStdErrs
 
     putStrLn "\n\tLMVTX Excess Returns & Fama French Factors"
-    readRawCsv fileP >>= pprint . (sliceData 5 2)
+    readRawCsv fileP >>= pprint . (sliceData 5 6)
     putStrLn "\n\tGLS Regression output"
     let output = regOut <$> betas <*> whiteStdErrs <*> tstats
     pprint output
