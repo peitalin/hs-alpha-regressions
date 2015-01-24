@@ -6,7 +6,7 @@
 
 import           Colour.ColourGHCI
 import qualified Data.ByteString.Lazy.Char8 as BL
-import qualified Data.Vector 				as V
+import qualified Data.Vector                as V
 import qualified Data.Map
 import           Data.Csv
 import           Data.List
