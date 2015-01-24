@@ -10,8 +10,8 @@ import qualified Data.Vector                as V
 import qualified Data.Map
 import           Data.Csv
 import           Data.List
-import           Data.String 				-- IsString type
-import           Foreign.Storable			-- Storable type
+import           Data.String                -- IsString type
+import           Foreign.Storable           -- Storable type
 import           GHC.Generics
 import           Control.Applicative
 import           Numeric.LinearAlgebra
@@ -23,7 +23,7 @@ import           Numeric.LinearAlgebra
 main :: IO ()
 main = do
     csvdata <- readRawCsv fileP
-	-- Right csvdata <- readRawCsv fileP -- Unwraps Either layer for entire block
+    -- Right csvdata <- readRawCsv fileP -- Unwraps Either layer for entire block
 
     let y  = getKey csvdata lmvtx
         x1 = getKey csvdata market
@@ -92,17 +92,14 @@ estimateBetas x y = pinv(x) <> y
 
 residuals :: (Mul a b c, Product t, Applicative f, Num (c t)) => f (a t) -> f (c t) -> f (b t) -> f (c t)
 residuals x y betas = (-) <$> y <*> (yhat)
-	where yhat = (<>) <$> x <*> betas
-
-
-degreesFree :: Num a => [b] -> [b] -> a
-degreesFree residuals predictors = (genericLength residuals) - (genericLength predictors)
+    where yhat = (<>) <$> x <*> betas
 
 
 varCovMatrix :: (Num (Vector a), Scalar a) => Matrix a -> Matrix a -> Matrix a
 varCovMatrix x e = sigma * inv (trans x <> x)
-    where sigma  = trans e <> e / degreesFree (toRows e) (toColumns x)
-				-- e'e / (n-k)
+    where sigma  = trans e <> e / degreesFree (toRows e) (toColumns x) -- e'e / (n-k)
+          degreesFree errors predictors = (genericLength errors) - (genericLength predictors)
+
 
 
 robustVCV :: (Num (Vector a), Scalar a) => Matrix a -> Matrix a -> Matrix a
@@ -120,16 +117,17 @@ getStdErrs varCovFn x e = (asColumn . sqrt . takeDiag) <$> (varCovFn <$> x <*> e
 
 
 type HashMap = Data.Map.Map
-regOut :: (Element d, IsString a) => Matrix d -> Matrix d -> Matrix d -> HashMap ErrorMsg ((a,d), (a,d), (a,d))
+type ZipOutput a d = HashMap ErrorMsg ((a,d), (a,d), (a,d))
+
+regOut :: (Element d, IsString a) => Matrix d -> Matrix d -> Matrix d -> ZipOutput a d
 regOut betas stdErr tstats = do
     Data.Map.fromList $ zip (words "Alpha Market SMB HML") $ regOutput
     where matrixToList = (toList . head . toColumns)
           regOutput = zip3 (zip (replicate 4 "Coefficient") (matrixToList betas))
                            (zip (replicate 4 "Std. Errors") (matrixToList stdErr))
                            (zip (replicate 4 "t-Statistic") (matrixToList tstats))
-
-
 -- OUTPUT: Ideally find a way to format and print in table
+
 
 
 
@@ -149,7 +147,7 @@ hashmap ! key = (Data.Map.lookup key) <$> hashmap
 
 
 {-
---GHCI only
+-- GHCI only
 
 let v = asColumn $ fromList [1..12]
 let u = asColumn $ fromList [21..32]
@@ -174,7 +172,5 @@ df ! "HML"
 
 let matrixToList = fmap (ZipList . toList . head . toColumns)
 map matrixToList [betas, whiteStdErrs, tstats]
-
-
 
 -}
