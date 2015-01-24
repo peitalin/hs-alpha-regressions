@@ -11,5 +11,7 @@ record fields.
 - hmatrix
 - cassava
 - statistics
+- hscolour
+- pretty-show
 
 
