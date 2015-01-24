@@ -57,11 +57,11 @@ fileP :: FilePath
 fileP = "ff3.csv"
 
 data Returns = Returns
-	{ date 		:: String
-	, lmvtx	 	:: Double
-	, market 	:: Double
-	, smb 		:: Double
-	, hml 		:: Double
+	{ date 		:: String -- Risk-factors from Ken French's data library.
+	, lmvtx	 	:: Double -- LMVTX excess returns: log(Price[t+1]/Price[t]) - risk-free-rate[t]
+	, market 	:: Double -- Market Premium: Market Return - risk-free-rate
+	, smb 		:: Double -- Size factor
+	, hml 		:: Double -- Value factor
 	} deriving (Generic, Show)
 
 instance FromNamedRecord Returns
@@ -102,7 +102,7 @@ getResiduals y yhat = y - yhat
 varCovMatrix :: (Num (Vector a), Scalar a) => Matrix a -> Matrix a -> Matrix a
 varCovMatrix x e = sigma * inv (trans x <> x)
     where sigma  = trans e <> e / degreesFree (toRows e) (toColumns x) -- e'e / (n-k)
-          degreesFree errors predictors = (genericLength errors) - (genericLength predictors)
+          degreesFree errs predictors = (genericLength errs) - (genericLength predictors)
 
 
 robustVCV :: (Num (Vector a), Scalar a) => Matrix a -> Matrix a -> Matrix a
@@ -134,7 +134,7 @@ regOut betas stdErr tstats pvals = do
                            (zip (replicate numParams "Std. Error") (matrixToList stdErr))
                            (zip (replicate numParams "t-Statistic") (matrixToList tstats))
                            (zip (replicate numParams "p-value") (matrixToList pvals))
--- OUTPUT: Ideally find a way to format and print in table
+-- OUTPUT: Ideally find a way to format print a table
 
 
 -- Define infix operators for Monadic Matrix Appending
