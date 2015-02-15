@@ -6,7 +6,11 @@ Needs a more flexible csv parsing implementation.
 Currently parses .csv file by into record data types, using label names as
 record fields.
 
->>> ghci regression.hs
+Run:
+cabal install
+cabal run
+
+$ ghci regression.hs
 ghci> main
 
 #### Cabal Dependencies
