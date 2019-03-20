@@ -10,9 +10,6 @@ Run:
 ```bash
 $ cabal install
 $ cabal run
-```
-
-```bash
 $ ghci regression.hs
 ```
 ```haskell
