@@ -21,7 +21,7 @@ ghci> main
 - pretty-show
 
 Example to try in GHCI
-```
+```haskell
 let v = asColumn $ fromList [1..12]
 let u = asColumn $ fromList [21..32]
 qwer <- readRawCsv fileP
