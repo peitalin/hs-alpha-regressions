@@ -7,12 +7,14 @@ Currently parses .csv file by into record data types, using label names as
 record fields.
 
 Run:
-cabal install
-cabal run
+```bash
+$ cabal install
+$ cabal run```
 
+```bash
 $ ghci regression.hs
 ghci> main
-
+```
 #### Cabal Dependencies
 - hmatrix
 - cassava
