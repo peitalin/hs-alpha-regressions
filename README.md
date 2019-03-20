@@ -9,12 +9,16 @@ record fields.
 Run:
 ```bash
 $ cabal install
-$ cabal run```
+$ cabal run
+```
 
 ```bash
 $ ghci regression.hs
+```
+```haskell
 ghci> main
 ```
+
 #### Cabal Dependencies
 - hmatrix
 - cassava
